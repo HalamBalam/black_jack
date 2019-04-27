@@ -1,21 +1,26 @@
 class Card
   attr_reader :suit, :type
 
-  PICTURE_TYPES = [:J, :Q, :K, :A]
+  PICTURE_TYPES = %i[J Q K A].freeze
 
-  class << self 
+  class << self
     def suits
-      [:diamonds, :spades, :clubs, :hearts]
+      {
+        spades: "\u2660",
+        clubs: "\u2663",
+        hearts: "\u2665",
+        diamonds: "\u2666"
+      }
     end
 
     def types
       result = []
-      for value in 2..10 do
-        result << "_#{value.to_s}".to_sym
+      (2..10).each do |value|
+        result << "_#{value}".to_sym
       end
       PICTURE_TYPES.each { |value| result << value }
 
-      return result
+      result
     end
   end
 
@@ -25,11 +30,17 @@ class Card
   end
 
   def value(score)
-    if type == :A 
+    if type == :A
       return score + 11 > 21 ? 1 : 11
     end
     return 10 if PICTURE_TYPES.include?(type)
+
     type.to_s.sub('_', '').to_i
   end
 
+  def description
+    type_name = type.to_s.sub('_', '')
+    suit_name = self.class.suits[suit]
+    "|#{type_name}#{suit_name}|"
+  end
 end

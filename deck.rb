@@ -5,13 +5,15 @@ class Deck
 
   def initialize
     @cards = []
-    Card.suits.each do |suit|
-      Card.types.each { |type| cards << Card.new(suit, type) } 
+    Card.suits.each_key do |suit|
+      Card.types.each { |type| cards << Card.new(suit, type) }
     end
+    @cards.shuffle!
   end
 
   def give_random_card
-    raise "Колода пуста" if cards.empty?
-    cards.delete(cards[rand(cards.size)])
+    raise 'Колода пуста' if cards.empty?
+
+    cards.pop
   end
 end
