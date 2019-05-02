@@ -1,36 +1,38 @@
 require_relative 'player'
-require_relative 'user_player'
-require_relative 'computer_player'
+require_relative 'user'
+require_relative 'dealer'
 require_relative 'bank'
 require_relative 'deck'
-require_relative 'actions'
+require_relative 'interface'
+require_relative 'game_rules'
 
 class Main
-  attr_accessor :current_player, :dealer, :bank, :deck
+  attr_accessor :user, :dealer, :bank, :deck
 
   START_CASH = 100
   BET = 10
 
-  def run
-    puts 'Введите имя игрока:'
-    name = gets.chomp
+  ACTION_NAMES = { skip: 'Пропустить', add_card: 'Добавить карту', show_cards: 'Открыть карты' }.freeze
 
-    @current_player = UserPlayer.new(name, START_CASH)
-    @dealer = ComputerPlayer.new('Дилер', START_CASH)
+  DEALER_SKIP_VALUE = 17
+
+  def run
+    name = Interface.enter_user_name
+
+    @user = User.new(name, START_CASH)
+    @dealer = Dealer.new('Дилер', START_CASH)
 
     start_game
   end
 
   def start_game
     loop do
-      puts
-      puts '**************НАЧАЛО ИГРЫ**************'
+      Interface.show_start_message
 
       make_bets
       make_moves
 
-      puts
-      puts '**************КОНЕЦ ИГРЫ**************'
+      Interface.show_end_message
 
       end_game
       break unless next_game?
@@ -39,81 +41,119 @@ class Main
 
   def make_bets
     @bank = Bank.new
-    @bank.take_money(current_player, BET)
+    @bank.take_money(user, BET)
     @bank.take_money(dealer, BET)
 
     @deck = Deck.new
 
     2.times do
-      current_player.take_card(deck)
-      dealer.take_card(deck)
+      user.hand.take_card(deck.give_random_card)
+      dealer.hand.take_card(deck.give_random_card)
     end
   end
 
   def make_moves
-    show_status
+    game_status
+
     loop do
-      action = current_player.make_move(deck)
-      Actions.show_info(action, current_player)
+      action = user_move
       break if action == :show_cards || max_cards_in_hands?
 
-      action = dealer.make_move(deck)
-      Actions.show_info(action, dealer)
+      dealer_move
       break if max_cards_in_hands?
 
-      show_status(false)
+      game_status(false)
     end
   end
 
   def end_game
     dealer.show_info = true
-    show_status
+    game_status
 
-    current_player_delta = 21 - current_player.score
-    dealer_delta = 21 - dealer.score
+    user_delta = GameRules::BJ - user.hand.value
+    dealer_delta = GameRules::BJ - dealer.hand.value
 
-    if current_player_delta < 0 && dealer_delta < 0
-      puts 'РЕЗУЛЬТАТ ИГРЫ: НЕТ ПОБЕДИТЕЛЯ'
-      bank.take_players_bets
-    elsif current_player.score == dealer.score
-      puts 'РЕЗУЛЬТАТ ИГРЫ: НИЧЬЯ'
-      bank.split_money(current_player, dealer)
-    elsif current_player_delta < dealer_delta && current_player_delta > 0 || dealer_delta < 0
-      puts "РЕЗУЛЬТАТ ИГРЫ: ПОБЕДА ИГРОКА \'#{current_player.name}\'"
-      bank.give_money(current_player)
+    if user_delta < 0 && dealer_delta < 0
+      game_result_no_winner
+    elsif user_delta == dealer_delta
+      game_result_draw
+    elsif user_delta < dealer_delta && user_delta > 0 || dealer_delta < 0
+      game_result_player_wins(user)
     else
-      puts "РЕЗУЛЬТАТ ИГРЫ: ПОБЕДА ИГРОКА \'#{dealer.name}\'"
-      bank.give_money(dealer)
+      game_result_player_wins(dealer)
     end
 
-    current_player.hand.clear
+    user.hand.clear
     dealer.hand.clear
 
-    show_status
+    game_status
     dealer.show_info = false
   end
 
+  def game_result_no_winner
+    Interface.show_result_no_winner
+    bank.take_players_bets
+  end
+
+  def game_result_draw
+    Interface.show_result_draw
+    bank.split_money(user, dealer)
+  end
+
+  def game_result_player_wins(player)
+    Interface.show_result_player_wins(player.name)
+    bank.give_money(player)
+  end
+
   def next_game?
-    return false if current_player.cash < BET || dealer.cash < BET
+    return false if user.cash < BET || dealer.cash < BET
 
     loop do
-      puts 'Начать новую игру? (Y/N)'
-      choice = gets.chomp.upcase
-      return true if %w[Y Д].include?(choice)
-      return false if %w[N Н].include?(choice)
+      choice = Interface.ask_for_next_game
+      return true if %w[Y Д д].include?(choice)
+      return false if %w[N Н н].include?(choice)
     end
   end
 
-  def show_status(show_bank_info = true)
-    puts
-    puts bank.description if show_bank_info
-    puts current_player.description
-    puts dealer.description
-    puts
+  def game_status(show_bank_info = true)
+    bank_description = bank.description if show_bank_info
+    Interface.game_status(user.description, dealer.description, bank_description)
   end
 
   def max_cards_in_hands?
-    current_player.hand.size >= 3 && dealer.hand.size >= 3
+    user.hand.size >= GameRules::MAX_HAND_SIZE && dealer.hand.size >= GameRules::MAX_HAND_SIZE
+  end
+
+  def user_move
+    action = choose_action
+    user.hand.take_card(deck.give_random_card) if action == :add_card
+
+    action_info(action, user)
+    action
+  end
+
+  def choose_action
+    actions = %i[skip add_card show_cards]
+    actions.delete(:add_card) if user.hand.size >= GameRules::MAX_HAND_SIZE
+
+    elements = []
+    actions.each { |action| elements << ACTION_NAMES[action] }
+
+    actions[Interface.choose_from_collection(elements)]
+  end
+
+  def dealer_move
+    return :skip if dealer.hand.value >= DEALER_SKIP_VALUE
+
+    action = :add_card
+    dealer.hand.take_card(deck.give_random_card)
+
+    action_info(action, dealer)
+    action
+  end
+
+  def action_info(action, player)
+    Interface.send("show_action_#{action}_info".to_sym, player.name)
   end
 end
 

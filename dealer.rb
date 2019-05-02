@@ -1,4 +1,4 @@
-class ComputerPlayer < Player
+class Dealer < Player
   attr_accessor :show_info
 
   def initialize(name, cash)
@@ -8,8 +8,10 @@ class ComputerPlayer < Player
 
   def description
     result = "#{name} (#{cash}$)"
+    hand_description = hand.description(show_info)
+    score = hand.value
 
-    unless hand.empty?
+    if hand.size > 0
       result += ": #{hand_description}"
       result += " СЧЕТ: #{score}" if show_info
     end
@@ -18,21 +20,5 @@ class ComputerPlayer < Player
 
   def short_description
     "#{name} (#{cash}$)"
-  end
-
-  def hand_description
-    result = ''
-    hand.each do |card|
-      result += card.description if show_info
-      result += '|*|' unless show_info
-    end
-    result
-  end
-
-  def make_move(deck)
-    return :skip if score >= 17
-
-    take_card(deck)
-    :add_card
   end
 end

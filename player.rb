@@ -1,23 +1,24 @@
+require_relative 'interface'
+require_relative 'hand'
+
 class Player
-  attr_accessor :name, :cash
-  attr_reader :hand
+  attr_reader :hand, :cash, :name
 
   def initialize(name, cash)
     @name = name
     @cash = cash
-    @hand = []
+    @hand = Hand.new
   end
 
-  def take_card(deck)
-    raise 'В руке не должно быть более 3-х карт' if hand.size >= 3
+  def withdraw(value)
+    raise "У игрока \'#{name}\' недостаточно средств для списания #{value}$" if value > cash
 
-    hand << deck.give_random_card
+    Interface.withdraw_message(name, value)
+    @cash -= value
   end
 
-  def score
-    result = 0
-    sort_hand = hand.sort_by { |card| card.type == :A ? 1 : 0 }
-    sort_hand.each { |card| result += card.value(result) }
-    result
+  def debit(value)
+    Interface.debit_message(name, value)
+    @cash += value
   end
 end

@@ -1,46 +1,27 @@
+require_relative 'game_rules'
+
 class Card
-  attr_reader :suit, :type
+  attr_reader :suit, :rank
 
-  PICTURE_TYPES = %i[J Q K A].freeze
+  SUITS = ['♠', '♥', '♦', '♣'].freeze
+  RANKS = [*('2'..'10'), 'J', 'K', 'Q', 'A'].freeze
+  HIGH_RANKS = %w[J K Q A].freeze
 
-  class << self
-    def suits
-      {
-        spades: "\u2660",
-        clubs: "\u2663",
-        hearts: "\u2665",
-        diamonds: "\u2666"
-      }
-    end
-
-    def types
-      result = []
-      (2..10).each do |value|
-        result << "_#{value}".to_sym
-      end
-      PICTURE_TYPES.each { |value| result << value }
-
-      result
-    end
-  end
-
-  def initialize(suit, type)
+  def initialize(suit, rank)
     @suit = suit
-    @type = type
+    @rank = rank
   end
 
   def value(score)
-    if type == :A
-      return score + 11 > 21 ? 1 : 11
+    if rank == 'A'
+      return score + GameRules::ACE_MAX_VALUE > GameRules::BJ ? GameRules::ACE_MIN_VALUE : GameRules::ACE_MAX_VALUE
     end
-    return 10 if PICTURE_TYPES.include?(type)
+    return 10 if HIGH_RANKS.include?(rank)
 
-    type.to_s.sub('_', '').to_i
+    rank.to_i
   end
 
   def description
-    type_name = type.to_s.sub('_', '')
-    suit_name = self.class.suits[suit]
-    "|#{type_name}#{suit_name}|"
+    "|#{rank}#{suit}|"
   end
 end
