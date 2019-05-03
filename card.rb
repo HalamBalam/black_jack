@@ -1,7 +1,8 @@
-require_relative 'game_rules'
-
 class Card
   attr_reader :suit, :rank
+
+  ACE_VALUE = 11
+  HIGH_RANK_VALUE = 10
 
   SUITS = ['♠', '♥', '♦', '♣'].freeze
   RANKS = [*('2'..'10'), 'J', 'K', 'Q', 'A'].freeze
@@ -12,11 +13,13 @@ class Card
     @rank = rank
   end
 
-  def value(score)
-    if rank == 'A'
-      return score + GameRules::ACE_MAX_VALUE > GameRules::BJ ? GameRules::ACE_MIN_VALUE : GameRules::ACE_MAX_VALUE
-    end
-    return 10 if HIGH_RANKS.include?(rank)
+  def ace?
+    rank == 'A'
+  end
+
+  def value
+    return ACE_VALUE if ace?
+    return HIGH_RANK_VALUE if HIGH_RANKS.include?(rank)
 
     rank.to_i
   end

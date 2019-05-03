@@ -11,10 +11,9 @@ class Main
 
   START_CASH = 100
   BET = 10
+  DEALER_SKIP_VALUE = 17
 
   ACTION_NAMES = { skip: 'Пропустить', add_card: 'Добавить карту', show_cards: 'Открыть карты' }.freeze
-
-  DEALER_SKIP_VALUE = 17
 
   def run
     name = Interface.enter_user_name
@@ -44,6 +43,9 @@ class Main
     @bank.take_money(user, BET)
     @bank.take_money(dealer, BET)
 
+    Interface.withdraw_message(user.name, BET)
+    Interface.withdraw_message(dealer.name, BET)
+
     @deck = Deck.new
 
     2.times do
@@ -53,7 +55,9 @@ class Main
   end
 
   def make_moves
-    game_status
+    show_bank_info
+    show_player_info(user)
+    show_dealer_info
 
     loop do
       action = user_move
@@ -62,37 +66,56 @@ class Main
       dealer_move
       break if max_cards_in_hands?
 
-      game_status(false)
+      show_player_info(user)
+      show_dealer_info
     end
   end
 
+  def show_bank_info
+    Interface.puts_empty_string
+    Interface.show_description(bank)
+  end
+
+  def show_player_info(player)
+    Interface.puts_empty_string
+    Interface.show_description(player)
+    Interface.show_cards(player.hand.cards)
+    Interface.show_player_score(player.hand.value)
+  end
+
+  def show_dealer_info
+    Interface.puts_empty_string
+    Interface.show_description(dealer)
+    Interface.show_card_mask(dealer.hand.size)
+  end
+
   def end_game
-    dealer.show_info = true
-    game_status
+    show_player_info(user)
+    show_player_info(dealer)
 
-    user_delta = GameRules::BJ - user.hand.value
-    dealer_delta = GameRules::BJ - dealer.hand.value
-
-    if user_delta < 0 && dealer_delta < 0
-      game_result_no_winner
-    elsif user_delta == dealer_delta
+    winner = determine_winner
+    if winner.nil?
       game_result_draw
-    elsif user_delta < dealer_delta && user_delta > 0 || dealer_delta < 0
-      game_result_player_wins(user)
     else
-      game_result_player_wins(dealer)
+      game_result_player_wins(winner)
     end
 
     user.hand.clear
     dealer.hand.clear
 
-    game_status
-    dealer.show_info = false
+    Interface.show_description(user)
+    Interface.show_description(dealer)
   end
 
-  def game_result_no_winner
-    Interface.show_result_no_winner
-    bank.take_players_bets
+  def determine_winner
+    return if user.hand.value > GameRules::BJ && dealer.hand.value > GameRules::BJ
+    return if user.hand.value == dealer.hand.value
+
+    return dealer if user.hand.value > GameRules::BJ
+    return user if dealer.hand.value > GameRules::BJ
+    return user if user.hand.value > dealer.hand.value
+
+    dealer
   end
 
   def game_result_draw
@@ -115,13 +138,8 @@ class Main
     end
   end
 
-  def game_status(show_bank_info = true)
-    bank_description = bank.description if show_bank_info
-    Interface.game_status(user.description, dealer.description, bank_description)
-  end
-
   def max_cards_in_hands?
-    user.hand.size >= GameRules::MAX_HAND_SIZE && dealer.hand.size >= GameRules::MAX_HAND_SIZE
+    user.hand.full? && dealer.hand.full?
   end
 
   def user_move
@@ -134,7 +152,7 @@ class Main
 
   def choose_action
     actions = %i[skip add_card show_cards]
-    actions.delete(:add_card) if user.hand.size >= GameRules::MAX_HAND_SIZE
+    actions.delete(:add_card) if user.hand.full?
 
     elements = []
     actions.each { |action| elements << ACTION_NAMES[action] }

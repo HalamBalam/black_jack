@@ -1,5 +1,3 @@
-require_relative 'interface'
-
 class Bank
   attr_accessor :sum
 
@@ -20,11 +18,6 @@ class Bank
   def split_money(player1, player2)
     player1.debit(sum * 0.5)
     player2.debit(sum * 0.5)
-    @sum = 0
-  end
-
-  def take_players_bets
-    Interface.bank_takes_money_message
     @sum = 0
   end
 
