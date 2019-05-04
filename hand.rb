@@ -17,18 +17,8 @@ class Hand
   end
 
   def value
-    sum = 0
-    @cards.each { |card| sum += card.value }
+    sum = @cards.inject(0) { |x, n| x + n.value }
     ace_correction(sum)
-  end
-
-  def description(show_info = true)
-    result = ''
-    cards.each do |card|
-      result += card.description if show_info
-      result += '|*|' unless show_info
-    end
-    result
   end
 
   def clear

@@ -18,4 +18,8 @@ class Player
   def debit(value)
     @cash += value
   end
+
+  def can_take_card?
+    !hand.full?
+  end
 end

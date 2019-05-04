@@ -9,17 +9,17 @@ require_relative 'game_rules'
 class Main
   attr_accessor :user, :dealer, :bank, :deck
 
-  START_CASH = 100
-  BET = 10
-  DEALER_SKIP_VALUE = 17
-
-  ACTION_NAMES = { skip: 'Пропустить', add_card: 'Добавить карту', show_cards: 'Открыть карты' }.freeze
+  ACTION_NAMES = {
+    skip: 'Пропустить',
+    add_card: 'Добавить карту',
+    show_cards: 'Открыть карты'
+  }.freeze
 
   def run
     name = Interface.enter_user_name
 
-    @user = User.new(name, START_CASH)
-    @dealer = Dealer.new('Дилер', START_CASH)
+    @user = User.new(name, GameRules::START_CASH)
+    @dealer = Dealer.new('Дилер', GameRules::START_CASH)
 
     start_game
   end
@@ -40,11 +40,11 @@ class Main
 
   def make_bets
     @bank = Bank.new
-    @bank.take_money(user, BET)
-    @bank.take_money(dealer, BET)
+    @bank.take_money(user, GameRules::BET)
+    @bank.take_money(dealer, GameRules::BET)
 
-    Interface.withdraw_message(user.name, BET)
-    Interface.withdraw_message(dealer.name, BET)
+    Interface.withdraw_message(user.name, GameRules::BET)
+    Interface.withdraw_message(dealer.name, GameRules::BET)
 
     @deck = Deck.new
 
@@ -61,10 +61,10 @@ class Main
 
     loop do
       action = user_move
-      break if action == :show_cards || max_cards_in_hands?
+      break if action == :show_cards || round_ended?
 
       dealer_move
-      break if max_cards_in_hands?
+      break if round_ended?
 
       show_player_info(user)
       show_dealer_info
@@ -113,9 +113,8 @@ class Main
 
     return dealer if user.hand.value > GameRules::BJ
     return user if dealer.hand.value > GameRules::BJ
-    return user if user.hand.value > dealer.hand.value
 
-    dealer
+    [user, dealer].max_by { |player| player.hand.value }
   end
 
   def game_result_draw
@@ -129,7 +128,7 @@ class Main
   end
 
   def next_game?
-    return false if user.cash < BET || dealer.cash < BET
+    return false if user.cash < GameRules::BET || dealer.cash < GameRules::BET
 
     loop do
       choice = Interface.ask_for_next_game
@@ -138,8 +137,8 @@ class Main
     end
   end
 
-  def max_cards_in_hands?
-    user.hand.full? && dealer.hand.full?
+  def round_ended?
+    [user, dealer].all? { |player| !player.can_take_card? }
   end
 
   def user_move
@@ -152,7 +151,7 @@ class Main
 
   def choose_action
     actions = %i[skip add_card show_cards]
-    actions.delete(:add_card) if user.hand.full?
+    actions.delete(:add_card) unless user.can_take_card?
 
     elements = []
     actions.each { |action| elements << ACTION_NAMES[action] }
@@ -161,7 +160,7 @@ class Main
   end
 
   def dealer_move
-    return :skip if dealer.hand.value >= DEALER_SKIP_VALUE
+    return :skip unless dealer.can_take_card?
 
     action = :add_card
     dealer.hand.take_card(deck.give_random_card)

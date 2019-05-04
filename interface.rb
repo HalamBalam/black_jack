@@ -23,14 +23,6 @@ module Interface
       puts object.description
     end
 
-    def game_status(player1_description, player2_description, bank_description = nil)
-      puts
-      puts bank_description unless bank_description.nil?
-      puts player1_description
-      puts player2_description
-      puts
-    end
-
     def show_result_draw
       puts
       puts 'РЕЗУЛЬТАТ ИГРЫ: НИЧЬЯ'
